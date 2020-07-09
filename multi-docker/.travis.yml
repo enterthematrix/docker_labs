@@ -1,0 +1,37 @@
+language: generic
+sudo: required
+services:
+  - docker
+
+before_install:
+  - docker build -t enterthematrix/react-test -f ./client/Dockerfile.dev .
+
+script:
+  - docker run -e CI=true enterthematrix/react-test npm test
+
+after_success:
+  - docker build -t enterthematrix/multi-client ./client
+  - docker build -t enterthematrix/multi-server ./server 
+  - docker build -t enterthematrix/multi-worker ./worker 
+  - docker build -t enterthematrix/multi-nginx ./nginx
+  # Login to docker CLI
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  # push images to DockerHub
+  - docker push enterthematrix/multi-client
+  - docker push enterthematrix/multi-server
+  - docker push enterthematrix/multi-worker
+  - docker push enterthematrix/multi-nginx
+
+deploy:
+  edge: true
+  provider: elasticbeanstalk
+  region: us-east-1
+  app: multi-dockers
+  env: MultiDockers-env
+  bucket_name: elasticbeanstalk-us-east-1-070368140805
+  bucket_path: docker-multi
+  on: 
+    branch: master
+  access_key_id: $AWS_ACCESS_KEY
+  secret_access_key: $AWS_SECRET_KEY
+  
